@@ -1,0 +1,46 @@
+apply plugin: 'groovy'
+
+sourceCompatibility = 1.8
+version = '1.0.0-SNAPSHOT'
+jar {
+        manifest {
+                attributes 'Implementation-Title': 'EasyGsp2 Gradle Build',
+                        'Implementation-Version': version
+        }
+
+        baseName = 'easygps2'
+        extension = 'jar'
+}
+
+repositories {
+        mavenCentral()
+}
+
+
+sourceSets {
+        main {
+                groovy {
+                        srcDirs = ['src/main/java']
+                }
+        }
+
+        test {
+                groovy {
+                        srcDirs = ['test/main/java']
+                }
+        }
+}
+
+dependencies {
+
+        compile 'javax.servlet:javax.servlet-api:3.1.0'
+        compile ('org.codehaus.groovy:groovy-all:2.4.3'){
+                transitive = false
+        }
+        compile 'javassist:javassist:3.12.1.GA'
+        compile 'commons-codec:commons-codec:1.10'
+        compile 'net.sourceforge.jregex:jregex:1.2_01'
+        compile 'javax.mail:mail:1.4.7'
+
+        testCompile 'junit:junit:4.12'
+}
