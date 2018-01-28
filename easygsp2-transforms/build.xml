@@ -1,0 +1,52 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<project basedir="." default="package" name="easygsp2-transforms">
+    <property environment="env"/>
+    <property name="groovy.home" value="${env.GROOVY_HOME}"/>
+    <property name="groovy.version" value="2.4.3"/>
+
+    <path id="classpath">
+        <fileset dir="lib" includes="**/*.jar">
+        </fileset>
+        <pathelement location="${groovy.home}/embeddable/groovy-all-${groovy.version}.jar"/>
+        <pathelement location="../easygsp2-framework/target/easygsp2-1.0.0-SNAPSHOT.jar"/>
+    </path>
+
+    <target name="clean">
+        <delete dir="target"/>
+        <mkdir dir="target"/>
+        <mkdir dir="target/classes"/>
+    </target>
+
+    <taskdef name="groovyc"
+             classname="org.codehaus.groovy.ant.Groovyc"
+             classpathref="classpath"/>
+
+    <!-- compile application -->
+    <target name="compile" depends="clean">
+
+        <groovyc classpathref="classpath" srcdir="src" destdir="target/classes">
+            <javac deprecation="false" nowarn="false"
+                   target="1.8" source="1.8" debug="true" classpathref="classpath">
+                <include name="**/*.java"/>
+                <include name="**/*.groovy"/>
+                <include name="**/*.properties"/>
+                <compilerarg value="-XDignore.symbol.file" />
+            </javac>
+        </groovyc>
+    </target>
+
+    <target name="package" depends="compile">
+
+        <copy todir="target/classes/META-INF">
+            <fileset dir="resources/META-INF">
+                <include name="**/*.*"/>
+            </fileset>
+        </copy>
+
+        <jar destfile="target/easygsp2-transforms.jar" basedir="target/classes"/>
+
+    </target>
+
+
+</project>
