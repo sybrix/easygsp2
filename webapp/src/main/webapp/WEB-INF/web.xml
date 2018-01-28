@@ -4,14 +4,25 @@
          xsi:schemaLocation="http://xmlns.jcp.org/xml/ns/javaee http://xmlns.jcp.org/xml/ns/javaee/web-app_3_1.xsd"
          version="3.1">
     <filter>
-        <filter-name>easygsp</filter-name>
-        <filter-class>sybrix.easygsp2.EasyGspFilter</filter-class>
+        <filter-name>securityFilter</filter-name>
+        <filter-class>sybrix.easygsp2.security.SecurityFilter</filter-class>
     </filter>
-
     <filter-mapping>
-        <filter-name>easygsp</filter-name>
+        <filter-name>securityFilter</filter-name>
         <url-pattern>/*</url-pattern>
     </filter-mapping>
+    <servlet>
+        <servlet-name>easygsp</servlet-name>
+        <servlet-class>sybrix.easygsp2.EasyGspServlet</servlet-class>
+        <init-param>
+            <param-name>appListener</param-name>
+            <param-value>testapp.listener.AppStart</param-value>
+        </init-param>
+    </servlet>
+    <servlet-mapping>
+        <servlet-name>easygsp</servlet-name>
+        <url-pattern>/*</url-pattern>
+    </servlet-mapping>
 
     <error-page>
         <error-code>500</error-code>
