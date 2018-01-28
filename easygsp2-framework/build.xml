@@ -1,0 +1,46 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<project basedir="." default="package" name="easgygsp2-framework">
+    <property environment="env"/>
+    <property name="groovy.home" value="${env.GROOVY_HOME}"/>
+    <property name="groovy.version" value="2.4.3"/>
+
+
+    <path id="classpath">
+        <fileset dir="lib" includes="**/*.jar">
+        </fileset>
+        <pathelement location="${groovy.home}/embeddable/groovy-all-${groovy.version}.jar"/>
+
+    </path>
+
+
+    <target name="clean">
+        <delete dir="target"/>
+        <mkdir dir="target"/>
+        <mkdir dir="target/classes"/>
+    </target>
+
+    <taskdef name="groovyc"
+             classname="org.codehaus.groovy.ant.Groovyc"
+             classpathref="classpath"/>
+
+    <!-- compile application -->
+    <target name="compile" depends="clean">
+
+        <groovyc classpathref="classpath" srcdir="src" destdir="target/classes">
+            <javac deprecation="false" nowarn="false"
+                   target="1.8" debug="true" classpathref="classpath">
+                <include name="**/*.java"/>
+                <include name="**/*.groovy"/>
+                <include name="**/*.properties"/>
+                <compilerarg value="-XDignore.symbol.file" />
+            </javac>
+        </groovyc>
+    </target>
+
+    <target name="package" depends="compile">
+        <jar destfile="target/easygsp2-framework.jar" basedir="target/classes"/>
+    </target>
+
+
+</project>
