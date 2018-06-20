@@ -68,7 +68,7 @@ public class Route {
 
                 } catch (Exception e) {
                         throw new RoutingException("Error initializing route httpMethod:" + httpMethod + ", path:" + path + ", " +
-                                "controller:" + controllerClass + ". " + e.getMessage(), e);
+                                "controllers:" + controllerClass + ". " + e.getMessage(), e);
                 }
         }
 

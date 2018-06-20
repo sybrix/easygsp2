@@ -4,6 +4,7 @@ import groovy.lang.Binding;
 import groovy.lang.GroovyClassLoader;
 import groovy.sql.Sql;
 import sybrix.easygsp2.routing.Route;
+import sybrix.easygsp2.templates.RequestError;
 import sybrix.easygsp2.templates.TemplateInfo;
 
 import javax.servlet.ServletContext;
@@ -24,9 +25,13 @@ public class ThreadVariables {
         private Binding binding;
         private Map<String, Route> routes;
         private Sql sql;
+        private RequestError requestError;
+        private boolean isTemplateRequest;
+        private String templateFilePath;
 
         public ThreadVariables(ServletContext app) {
                 this.app = app;
+                this.requestError = new RequestError();
         }
 
         public ThreadVariables(ServletContext app, ServletRequest request, ServletResponse response, Map<String,Route> routes, Sql sql, TemplateInfo templateInfo, GroovyClassLoader groovyClassLoader) {
@@ -38,8 +43,8 @@ public class ThreadVariables {
                 this.groovyClassLoader = groovyClassLoader;
                 this.routes = routes;
                 this.sql = sql;
+                this.requestError = new RequestError();
         }
-
 
         public HttpServletRequest getRequest() {
                 return request;
@@ -88,6 +93,26 @@ public class ThreadVariables {
 
         public void setSql(Sql sql){
                 this.sql = sql;
+        }
+
+        public RequestError getRequestError() {
+                return requestError;
+        }
+
+        public boolean isTemplateRequest() {
+                return isTemplateRequest;
+        }
+
+        public void setTemplateRequest(boolean templateRequest) {
+                isTemplateRequest = templateRequest;
+        }
+
+        public String getTemplateFilePath() {
+                return templateFilePath;
+        }
+
+        public void setTemplateFilePath(String templateFilePath) {
+                this.templateFilePath = templateFilePath;
         }
 }
 

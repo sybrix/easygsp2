@@ -21,6 +21,7 @@ import groovy.lang.GroovyRuntimeException;
 import groovy.text.Template;
 import groovy.text.TemplateEngine;
 import org.codehaus.groovy.control.CompilerConfiguration;
+import sybrix.easygsp2.exceptions.TemplateException;
 
 import javax.servlet.http.HttpServletResponse;
 import java.io.*;
@@ -144,8 +145,8 @@ public class TemplateWriter {
                 Template template = null;
 
                 /*
-                * Test cache for a valid template bound to the key.
-                */
+                 * Test cache for a valid template bound to the key.
+                 */
                 TemplateCacheEntry entry = (TemplateCacheEntry) cache.get(key);
                 if (entry != null) {
                         if (entry.validate(file)) {
@@ -225,15 +226,13 @@ public class TemplateWriter {
 //
 //        }
 
-
-        public void process(HttpServletResponse response, TemplateInfo templateInfo, Binding binding) throws IOException, FileNotFoundException {
+        public void process(HttpServletResponse response, TemplateInfo templateInfo, Binding binding) throws IOException, FileNotFoundException, TemplateException {
 
                 if (!templateInfo.errorOccurred())
                         templateInfo.setTemplateRequest(true);
 
 
                 logger.finest("Creating/getting cached template...");
-
 
                 //
                 // Get the template source file handle.
@@ -243,7 +242,6 @@ public class TemplateWriter {
                 if (!file.exists()) {
                         throw new FileNotFoundException("file " + file.getAbsolutePath() + " not found");
                 }
-
 
                 //
                 // Get the requested template.
@@ -256,15 +254,17 @@ public class TemplateWriter {
                         templateInfo.setUniqueTemplateScriptName(templateName);
                 }
                 getMillis = System.currentTimeMillis() - getMillis;
-
-
                 //setVariables(RequestThreadInfo.get().getBinding());
 
 
                 Writer out = response.getWriter();
 
                 long makeMillis = System.currentTimeMillis();
-                template.make(binding.getVariables()).writeTo(out);
+                try {
+                        template.make(binding.getVariables()).writeTo(out);
+                } catch (Exception e) {
+                        throw new TemplateException(e);
+                }
                 makeMillis = System.currentTimeMillis() - makeMillis;
 
                 if (response.getContentType() == null)

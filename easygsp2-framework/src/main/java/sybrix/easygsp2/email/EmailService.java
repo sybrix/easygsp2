@@ -25,37 +25,43 @@ import java.util.logging.Logger;
 
 /**
  * LoggerThread <br/>
- *                                                                
+ *
  * @author David Lee
  */
 public class EmailService {
         private static final Logger logger = Logger.getLogger(EmailThread.class.getName());
 
-        private static EmailThread emailThread;
+        private EmailThread emailThread;
+        private SMTPMailer smtpMailer;
 
-        public static void start() {
-                emailThread = new EmailThread();
+        public void start() {
+                emailThread = new EmailThread(smtpMailer);
                 emailThread.start();
         }
 
-        public static void addEmail(Email email) {
+        public void sendEmail(Email email) {
                 emailThread.addEmail(email);
         }
 
-        public static void stop() {
+        public void stop() {
                 emailThread.stopThread();
         }
 
-        private static class EmailThread extends Thread {
+        private class EmailThread extends Thread {
 
                 private volatile boolean stopped = false;
                 private List<Email> emails = Collections.synchronizedList(new ArrayList());
+                private SMTPMailer smtpMailer;
+
+                public EmailThread(SMTPMailer smtpMailer){
+                       this.smtpMailer = smtpMailer;
+                }
 
                 @Override
                 public void run() {
                         logger.info("EmailService thread started");
                         while (true) {
-                                if (emails.size() == 0){
+                                if (emails.size() == 0) {
                                         synchronized (emails) {
                                                 try {
                                                         emails.wait();
@@ -64,7 +70,7 @@ public class EmailService {
                                                 }
                                         }
                                 }
-                                
+
                                 if (stopped && emails.size() == 0)
                                         break;
 
@@ -77,7 +83,7 @@ public class EmailService {
                 public void send(Email email) {
                         try {
                                 logger.fine("sending email: " + email);
-                                SMTPMailer.send(email);
+                                smtpMailer.send(email);
                         } catch (Exception e) {
                                 logger.log(Level.SEVERE, e.getMessage(), e);
                         }

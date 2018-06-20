@@ -38,11 +38,11 @@ import java.util.logging.Level;
 public class RoutingCategory {
         private static final Logger logger = LoggerFactory.getLogger(RoutingCategory.class);
 
-//        public static void add(GroovyObject self, String method, String path, String controller, String controllerMethod) {
-//                add(self, method, path, controller, controllerMethod, new ArrayList<String>());
+//        public static void add(GroovyObject self, String method, String path, String controllers, String controllerMethod) {
+//                add(self, method, path, controllers, controllerMethod, new ArrayList<String>());
 //        }
 //
-//        public static void add(GroovyObject self, String method, String path, String controller, String controllerMethod, List<String> parameters) {
+//        public static void add(GroovyObject self, String method, String path, String controllers, String controllerMethod, List<String> parameters) {
 //                List<String> paths = new ArrayList<String>();
 //                paths.add(path);
 //
@@ -50,33 +50,33 @@ public class RoutingCategory {
 //                method.add(method);
 //
 //
-//                add(self, method, paths, controller, controllerMethod, parameters);
+//                add(self, method, paths, controllers, controllerMethod, parameters);
 //        }
 //
-//        public static void add(GroovyObject self, String method, List<String> paths, String controller, String controllerMethod) {
-//                add(self, method, paths, controller, controllerMethod, new ArrayList<String>());
+//        public static void add(GroovyObject self, String method, List<String> paths, String controllers, String controllerMethod) {
+//                add(self, method, paths, controllers, controllerMethod, new ArrayList<String>());
 //        }
 //
-//        public static void add(GroovyObject self, String method, List<String> paths, String controller, String controllerMethod, List<String> parameters) {
+//        public static void add(GroovyObject self, String method, List<String> paths, String controllers, String controllerMethod, List<String> parameters) {
 //                List<String> method = new ArrayList<String>();
 //                method.add(method);
 //
-//                add(self, method, paths, controller, controllerMethod, parameters);
+//                add(self, method, paths, controllers, controllerMethod, parameters);
 //        }
 //
-//        public static void add(GroovyObject self, List<String> method, String path, String controller, String controllerMethod, List<String> parameters) {
+//        public static void add(GroovyObject self, List<String> method, String path, String controllers, String controllerMethod, List<String> parameters) {
 //                List<String> paths = new ArrayList<String>();
 //                paths.add(path);
 //
-//                add(self, method, paths, controller, controllerMethod, parameters);
+//                add(self, method, paths, controllers, controllerMethod, parameters);
 //        }
 //
-//        public static void add(GroovyObject self, List<String> method, String path, String controller, String controllerMethod) {
-//                add(self, method, path, controller, controllerMethod, new ArrayList<String>());
+//        public static void add(GroovyObject self, List<String> method, String path, String controllers, String controllerMethod) {
+//                add(self, method, path, controllers, controllerMethod, new ArrayList<String>());
 //        }
 //
-//        public static void add(GroovyObject self, List<String> httpMethods, List<String> paths, String controller, String controllerMethod, ) {
-//                add(self, httpMethods, paths, controller, controllerMethod, new ArrayList<String>(),);
+//        public static void add(GroovyObject self, List<String> httpMethods, List<String> paths, String controllers, String controllerMethod, ) {
+//                add(self, httpMethods, paths, controllers, controllerMethod, new ArrayList<String>(),);
 //        }
 
         public static void add(GroovyObject self, List<String> httpMethods, List<String> paths, String controller, String controllerMethod, List<String> parameters, List<String> roles, String[] accepts, String[] returns) {
@@ -111,7 +111,7 @@ public class RoutingCategory {
 
 //                for (String p : paths) {
 //                        try {
-//                                Class cls = Class.forName(controller, true, groovyClassLoader);
+//                                Class cls = Class.forName(controllers, true, groovyClassLoader);
 //                                for (Method m : cls.getMethods()) {
 //                                        if (m.getName().equals(controllerMethod)) {
 //                                                logger.finest("mapping " + p + " to method " + m);

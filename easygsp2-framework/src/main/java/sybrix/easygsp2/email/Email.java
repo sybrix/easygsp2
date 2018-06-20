@@ -28,8 +28,7 @@ import java.util.Map;
  * @author David Lee
  */
 public class Email {
-        private String host;
-        private int port;
+
         private String from;
         private List<String> recipients = new ArrayList<String>();
         private List<String> bcc= new ArrayList<String>();;
@@ -38,10 +37,7 @@ public class Email {
         private String body;
         private String htmlBody;
         private String subject;
-        private String username;
-        private String password;
-        private boolean authenticationRequired;
-        private boolean secure;
+
         private Map attachments = new HashMap();
        // private ServletContext app;
 
@@ -51,18 +47,7 @@ public class Email {
         public void setHtmlBody(String htmlBody) {
                 this.htmlBody = htmlBody;
         }
-        public String getHost() {
-                return host;
-        }
-        public void setHost(String host) {
-                this.host = host;
-        }
-        public int getPort() {
-                return port;
-        }
-        public void setPort(int port) {
-                this.port = port;
-        }
+
         public String getFrom() {
                 return from;
         }
@@ -107,32 +92,6 @@ public class Email {
                 this.subject = subject;
         }
 
-        public boolean isAuthenticationRequired() {
-                return authenticationRequired;
-        }
-        public void setAuthenticationRequired(boolean authenticationRequired) {
-                this.authenticationRequired = authenticationRequired;
-        }
-        public String getUsername() {
-                return username;
-        }
-        public void setUsername(String username) {
-                this.username = username;
-        }
-        public String getPassword() {
-                return password;
-        }
-        public void setPassword(String password) {
-                this.password = password;
-        }
-
-        public boolean isSecure() {
-                return secure;
-        }
-
-        public void setSecure(boolean secure) {
-                this.secure = secure;
-        }
 
         public Map<String, Object> getAttachments() {
                 return attachments;
@@ -142,16 +101,10 @@ public class Email {
                 this.attachments = attachments;
         }
 
-        public void send(){
-                EmailService.addEmail(this);
-        }
-
 
         @Override
         public String toString() {
                 return "Email{" +
-                        "host='" + host + '\'' +
-                        ", port=" + port +
                         ", from='" + from + '\'' +
                         ", recipients=" + recipients +
                         ", bcc=" + bcc +
@@ -160,10 +113,6 @@ public class Email {
                         ", body='" + body + '\'' +
                         ", htmlBody='" + htmlBody + '\'' +
                         ", subject='" + subject + '\'' +
-                        ", username='" + username + '\''+ 
-                        ", password='" + password + '\'' +
-                        ", authenticationRequired=" + authenticationRequired +
-                        ", secure=" + secure +
                         ", attachments=" + attachments +
                         '}';
         }

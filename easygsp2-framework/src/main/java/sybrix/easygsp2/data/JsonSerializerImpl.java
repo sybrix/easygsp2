@@ -5,7 +5,6 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JavaType;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.ObjectReader;
-import com.sun.xml.internal.ws.encoding.soap.SerializationException;
 import groovy.json.JsonSlurper;
 import sybrix.easygsp2.exceptions.ParameterDeserializationException;
 
@@ -15,7 +14,7 @@ import java.lang.reflect.Type;
 
 public class JsonSerializerImpl implements Serializer {
 
-        public void write(Object o, HttpServletResponse httpServletResponse) throws SerializationException {
+        public void write(Object o, HttpServletResponse httpServletResponse)  {
                 ObjectMapper objectMapper = new ObjectMapper();
                 try {
                         //httpServletResponse.setHeader("Transfer-Encoding", "chunked");

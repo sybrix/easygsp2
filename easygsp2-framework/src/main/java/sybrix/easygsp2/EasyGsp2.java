@@ -2,6 +2,7 @@ package sybrix.easygsp2;
 
 import groovy.json.JsonSlurper;
 import groovy.lang.*;
+import groovy.util.GroovyScriptEngine;
 import groovy.util.XmlSlurper;
 import javassist.ClassPool;
 import javassist.CtClass;
@@ -25,10 +26,7 @@ import sybrix.easygsp2.categories.RoutingCategory;
 import sybrix.easygsp2.data.Serializer;
 import sybrix.easygsp2.data.XmlSerializer;
 import sybrix.easygsp2.db.firebird.Model;
-import sybrix.easygsp2.exceptions.InvokeControllerActionException;
-import sybrix.easygsp2.exceptions.NoMatchingAcceptHeaderExcepton;
-import sybrix.easygsp2.exceptions.NoMatchingRouteException;
-import sybrix.easygsp2.exceptions.NoViewTemplateFound;
+import sybrix.easygsp2.exceptions.*;
 import sybrix.easygsp2.fileupload.FileUpload;
 import sybrix.easygsp2.framework.*;
 import sybrix.easygsp2.http.MediaType;
@@ -36,9 +34,9 @@ import sybrix.easygsp2.routing.MethodAndRole;
 import sybrix.easygsp2.routing.Routes;
 import sybrix.easygsp2.routing.UrlParameter;
 import sybrix.easygsp2.security.EasyGspServletRequest;
+import sybrix.easygsp2.templates.RequestError;
 import sybrix.easygsp2.templates.TemplateWriter;
 import sybrix.easygsp2.util.PropertiesFile;
-import sybrix.easygsp2.util.StringUtil;
 
 import javax.activation.MimeType;
 import javax.activation.MimeTypeParseException;
@@ -47,21 +45,24 @@ import javax.servlet.http.HttpServletResponse;
 import java.beans.BeanInfo;
 import java.beans.Introspector;
 import java.beans.PropertyDescriptor;
-import java.io.File;
-import java.io.IOException;
-import java.io.InputStream;
+import java.io.*;
 import java.lang.annotation.Annotation;
 import java.lang.reflect.*;
 import java.net.MalformedURLException;
 import java.net.URISyntaxException;
 import java.net.URL;
 import java.util.*;
-;
 import java.util.regex.Pattern;
 import javax.servlet.http.HttpServletRequest;
+import javax.validation.ConstraintViolation;
+import javax.validation.Validation;
+import javax.validation.Validator;
+import javax.validation.ValidatorFactory;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import sybrix.easygsp2.util.StringUtil;
+
 /**
  * Created by dsmith on 7/19/16.
  */
@@ -88,6 +89,9 @@ public class EasyGsp2 {
         private Set<String> classesWithApiAnnotation = new HashSet<String>();
         private Map<String, String> methods = new HashMap<String, String>();
         private boolean isServlet = false;
+        private AppListener appListener;
+
+        private Validator validator;
 
         static {
 
@@ -103,23 +107,6 @@ public class EasyGsp2 {
 
         public void init(ServletContext context, Object config) {
                 try {
-                        try {
-//                                InputStream configFile = EasyGsp2.class.getResourceAsStream("/log.properties");
-//                                LogManager.getLogManager().reset();
-//                                Properties properties = new Properties();
-//                                properties.load(configFile);
-//
-//                                String rootLogLevel = properties.getProperty(".level");
-//
-//                                if (rootLogLevel != null) {
-//                                        Level rootLevel = Level.parse(rootLogLevel);
-//                                        LogManager.getLogManager().getLogger("").setLevel(rootLevel);
-//                                }
-//                                LogManager.getLogManager().readConfiguration(configFile);
-                        } catch (Exception ex) {
-                                System.out.println("WARNING: Could not open configuration file");
-                                System.out.println("WARNING: Logging not configured (console output only)");
-                        }
 
                         System.setProperty("easygsp.version", "@easygsp_version");
 
@@ -165,12 +152,22 @@ public class EasyGsp2 {
 
                         if (appListenerClass != null) {
                                 Class cls = Class.forName(appListenerClass, false, groovyClassLoader);
-                                AppListener l = (AppListener) cls.newInstance();
-                                l.onApplicationStart(context);
+                                appListener = (AppListener) cls.newInstance();
+                                appListener.onApplicationStart(context);
                         }
+
+                        ValidatorFactory factory = Validation.buildDefaultValidatorFactory();
+                        validator = factory.getValidator();
+
                 } catch (Throwable e) {
-                        logger.error("error occurred in init()", e);
+                        logger.error("error occurred easygsp init()", e);
+                } finally {
+                        ThreadBag.remove();
                 }
+        }
+
+        protected AppListener getAppListener() {
+                return appListener;
         }
 
         public String getCompiledClassesDir() {
@@ -204,7 +201,7 @@ public class EasyGsp2 {
 
                 final String uri = httpServletRequest.getRequestURI();
 
-                logger.debug("processing web request, uri - " + uri);
+                logger.debug("processing web request, method: " + httpServletRequest.getMethod() + ", uri: " + uri);
                 Boolean continueFilterChain = false;
 
                 try {
@@ -232,6 +229,8 @@ public class EasyGsp2 {
 
                         Closure closure = new Closure(groovyClassLoader) {
 
+                                Class controllerClass = null;
+
                                 public Object call() {
                                         try {
 
@@ -241,7 +240,6 @@ public class EasyGsp2 {
                                                 String contentType = httpServletRequest.getContentType();
                                                 int contentLength = httpServletRequest.getContentLength();
 
-                                                Class controllerClass = null;
 
                                                 Method m = null;
 
@@ -252,14 +250,14 @@ public class EasyGsp2 {
                                                 GroovyObject controller = (GroovyObject) controllerClass.newInstance();
 
 //                                                if (useImplicitControllerObjects) {
-//                                                        logger.info("adding implicit controller objects (request, response, session, params)");
-//                                                        ImplicitObjectInjector.addMetaProperties(controller);
+//                                                        logger.info("adding implicit controllers objects (request, response, session, params)");
+//                                                        ImplicitObjectInjector.addMetaProperties(controllers);
 //                                                }
 
                                                 List<String> s = lookupParameterNames(m, groovyClassLoader);
                                                 Parameter[] parameters = m.getParameters();
 
-                                                logger.debug("invoking method " + m.getName() + "(), parameters: " + extractParameterTypes(parameters));
+                                                logger.debug("invoking method " + controllerClass.getName() + "." + m.getName() + "(), parameters: " + extractParameterTypes(parameters));
                                                 logger.debug("parameter names: " + s);
 
                                                 Object[] params = new Object[parameters.length];
@@ -286,11 +284,13 @@ public class EasyGsp2 {
 
                                                                 String valFromRequestParameter = null;
 
-                                                                UrlParameter urlParameter = route.getParameters().get(parameterName);
-                                                                if (urlParameter.getValue() != null) {
-                                                                        valFromRequestParameter = urlParameter.getValue();
-                                                                } else if (valFromRequestParameter == null) {
-                                                                        valFromRequestParameter = httpServletRequest.getParameter(parameterName);
+                                                                if (route.getParameters().size() > 0) {
+                                                                        UrlParameter urlParameter = route.getParameters().get(parameterName);
+                                                                        if (urlParameter.getValue() != null) {
+                                                                                valFromRequestParameter = urlParameter.getValue();
+                                                                        } else if (valFromRequestParameter == null) {
+                                                                                valFromRequestParameter = httpServletRequest.getParameter(parameterName);
+                                                                        }
                                                                 }
 
                                                                 if (valFromRequestParameter != null) {
@@ -326,12 +326,25 @@ public class EasyGsp2 {
                                                         i++;
                                                 }
 
+                                                List errors = validateParameters(params);
+                                                if (errors.size() > 0) {
+                                                        throw new BadRequestException(errors);
+                                                }
+
                                                 Object obj = invokeControllerAction(controller, m, params, route);
-                                                logger.debug("controller returned: " + obj);
+                                                logger.debug("controllers returned: " + obj);
+
+                                                Object redirectIssued = httpServletRequest.getAttribute("__redirect__");
+
+                                                if (Boolean.TRUE.equals(redirectIssued)) {
+                                                        return false;
+                                                }
+
+                                                boolean isApiController = isApiController(controllerClass);
 
                                                 MimeType returnContentType = null;
                                                 if (httpServletResponse.getContentType() == null) {
-                                                         returnContentType = calculateContentType(obj, route, httpServletResponse, httpServletRequest);
+                                                        returnContentType = calculateContentType(obj, route, httpServletResponse, httpServletRequest, isApiController);
                                                         if (!isContentTypeAccepted(httpServletRequest, returnContentType)) {
                                                                 httpServletResponse.setContentType(null);
                                                                 throw new NoMatchingAcceptHeaderExcepton();
@@ -342,12 +355,12 @@ public class EasyGsp2 {
                                                         returnContentType = new MimeType(httpServletResponse.getContentType());
                                                 }
 
-                                                 logger.debug("return content type: " + returnContentType.toString());
+                                                logger.debug("return content type: " + returnContentType.toString());
 
                                                 if (returnContentType.getBaseType().equals(APPLICATION_HTML_TEXT.getBaseType())) {
                                                         logger.debug("processing view " + obj);
                                                         ThreadBag.get().getTemplateInfo().setErrorOccurred(false);
-                                                        return processControllerResponse(obj, httpServletResponse, httpServletRequest);
+                                                        return processControllerResponse(obj, uri, httpServletResponse, httpServletRequest);
 
                                                 } else {
                                                         if (returnContentType.getBaseType().equals(APPLICATION_JSON.getBaseType())) {
@@ -357,14 +370,34 @@ public class EasyGsp2 {
                                                                         jsonSerializerInstance.write(obj, httpServletResponse);
                                                                         //httpServletResponse.flushBuffer();
                                                                 } else {
-                                                                        logger.debug("controller method returned null object, that's a 200 OK");
+                                                                        logger.debug("controllers method returned null object, that's a 200 OK");
                                                                 }
                                                         }
                                                 }
 
                                                 return false;
+                                        } catch (BadRequestException e) {
+                                                try {
+                                                        boolean isApiController = isApiController(controllerClass);
+                                                        MimeType returnContentType = calculateContentType(null, route, httpServletResponse, httpServletRequest, isApiController);
+                                                        httpServletResponse.setStatus(HttpServletResponse.SC_BAD_REQUEST);
+                                                        String msg = null;
+
+                                                        if (returnContentType.getBaseType().equals(APPLICATION_XML.getBaseType())) {
+                                                                //msg = xmlSerializerInstance.toString(e.getConstraintErrors());
+                                                                logger.error(" IMPLEMENT XML toString on Serializer");
+                                                        } else {
+                                                                msg = jsonSerializerInstance.toString(e.getConstraintErrors());
+                                                        }
+                                                        httpServletResponse.getOutputStream().write(msg.getBytes());
+
+                                                } catch (Exception x) {
+                                                        logger.debug("error occurred writing back to client on bad request", e);
+                                                }
+
+                                                return false;
                                         } catch (java.lang.IllegalArgumentException e) {
-                                                logger.error( "controller", e);
+                                                logger.error("controllers", e);
                                         } catch (NoMatchingRouteException e) {
                                                 httpServletResponse.setStatus(HttpServletResponse.SC_NOT_FOUND);
                                                 throw e;
@@ -374,7 +407,7 @@ public class EasyGsp2 {
 
                                         } catch (Exception e) {
                                                 httpServletResponse.setStatus(HttpServletResponse.SC_INTERNAL_SERVER_ERROR);
-                                                logger.error( e.getMessage(), e);
+                                                logger.error(e.getMessage(), e);
                                                 throw new RuntimeException(e);
                                         }
 
@@ -390,13 +423,40 @@ public class EasyGsp2 {
                 } catch (Exception e) {
                         throw new ServletException(e);
                 } finally {
+                        try {
+                                if (appListener != null) {
+                                        appListener.onRequestEnd(httpServletRequest);
+                                }
+                        } catch (Throwable e) {
+
+                        }
                         ThreadBag.remove();
                 }
 
                 return continueFilterChain;
         }
 
-        private MimeType calculateContentType(Object obj, sybrix.easygsp2.routing.Route route, HttpServletResponse response, HttpServletRequest request) throws MimeTypeParseException {
+        private List<ValidationMessage> validateParameters(Object[] params) {
+
+                List constraintViolations = new ArrayList();
+
+                for (Object o : params) {
+                        if (o instanceof ServletContext || o instanceof FileItem || o instanceof ServletRequest || o instanceof ServletResponse) {
+                                continue;
+                        }
+
+                        Set _constraintViolations = validator.validate(o);
+                        for (Object c : _constraintViolations) {
+                                ConstraintViolation constraintViolation = ((ConstraintViolation) c);
+                                ValidationMessage vm = new ValidationMessage(constraintViolation.getPropertyPath().toString(), constraintViolation.getMessage());
+                                constraintViolations.add(vm);
+                        }
+                }
+
+                return constraintViolations;
+        }
+
+        private MimeType calculateContentType(Object obj, sybrix.easygsp2.routing.Route route, HttpServletResponse response, HttpServletRequest request, Boolean isApiCall) throws MimeTypeParseException {
                 // if there's only one, the use it
                 if (route.getReturns().length == 1) {
                         return new MimeType(route.getReturns()[0]);
@@ -409,7 +469,12 @@ public class EasyGsp2 {
                         return new MimeType(response.getContentType());
                 }
 
-                MimeType defaultMimeType = new MimeType(propertiesFile.getString("default.response.contentType", "text/html"));
+                MimeType defaultMimeType = null;
+                if (isApiCall) {
+                        defaultMimeType = new MimeType(propertiesFile.getString("api.default.response.contentType", "application/json"));
+                } else {
+                        defaultMimeType = new MimeType(propertiesFile.getString("default.response.contentType", "text/html"));
+                }
 
                 // if you don't set, figure it out based on what you returned from the method
                 if (route.getReturns().length == 0) {
@@ -480,7 +545,7 @@ public class EasyGsp2 {
                         return false;
 
                 } catch (Exception e) {
-                        logger.debug( e.getMessage(), e);
+                        logger.debug(e.getMessage(), e);
                         return false;
                 }
 
@@ -528,7 +593,14 @@ public class EasyGsp2 {
                 }
         }
 
-        private boolean processControllerResponse(Object obj, HttpServletResponse httpServletResponse, HttpServletRequest httpServletRequest) throws URISyntaxException, IOException, ServletException {
+        private boolean processControllerResponse(Object obj, String requestURI, HttpServletResponse httpServletResponse, HttpServletRequest httpServletRequest) throws URISyntaxException, IOException, ServletException {
+                ThreadBag.get().setTemplateRequest(true);
+                Binding binding = ThreadBag.get().getBinding();
+
+                if (binding == null) {
+                        binding = new CustomServletBinding(context, httpServletRequest, httpServletResponse);
+                }
+
                 if (obj.toString().endsWith(".jsp") && isServlet) {
 
                         RequestDispatcher rd = httpServletRequest.getServletContext().getRequestDispatcher("/indexs.jsp");
@@ -543,23 +615,204 @@ public class EasyGsp2 {
                         URL f = Thread.currentThread().getContextClassLoader().getResource("./../../WEB-INF/views/" + obj);
 
                         if (f == null) {
-                                        throw new NoViewTemplateFound("View template  '" + obj.toString() + "' not found!!!");
+                                throw new NoViewTemplateFound("View template  '" + obj.toString() + "' not found!!!");
                         }
+
 
                         ThreadBag.get().setViewFolder(f.getPath());
                         File requestedViewFile = new File(f.toURI());
+                        ThreadBag.get().setTemplateFilePath(requestedViewFile.getAbsolutePath());
 
                         ThreadBag.get().getTemplateInfo().setRequestUri(obj.toString());
                         ThreadBag.get().getTemplateInfo().setAppFolderClassPathLocation("./../../WEB-INF/views/");
                         ThreadBag.get().getTemplateInfo().setRequestFile(requestedViewFile);
+                        try {
+                                TemplateWriter templateWriter = new TemplateWriter(groovyClassLoader);
+                                templateWriter.process(httpServletResponse, ThreadBag.get().getTemplateInfo(), binding);
+                                return false;
 
-                        TemplateWriter templateWriter = new TemplateWriter(groovyClassLoader);
-                        templateWriter.process(httpServletResponse, ThreadBag.get().getTemplateInfo(), new CustomServletBinding(context, httpServletRequest, httpServletResponse));
-                        return false;
+                        } catch (Throwable e) {
+                                logger.debug(e.getMessage(), e);
+                                sendError(500, requestURI, binding, e);
+                                //e.printStackTrace();
+                        }
+
+                        return true;
+
+
                 }
 
                 return true;
         }
+
+        private static void doNameCheckWarning(String requestURI) {
+                if (requestURI.endsWith("session.gspx") || requestURI.endsWith("app.gspx") || requestURI.endsWith("response.gspx") || requestURI.endsWith("request.gspx") || requestURI.endsWith("context.gspx") || requestURI.endsWith("application.gspx")) {
+
+                        logger.debug("warning - pages(" + requestURI + ") named the same as implicit objects could produce errors");
+                }
+        }
+
+
+        protected void sendError(int errorCode, String scriptPath, Binding binding, Throwable e) {
+//                if (RequestThreadInfo.get().errorOccurred()) {
+//                        return;
+//                }
+                ServletContext application = ThreadBag.get().getApp();
+                try {
+//                        ResponseImpl response = (ResponseImpl) binding.getVariable("response");
+//                        response.flushWriter();
+//                        response.clearBuffer();
+
+                        RequestError requestError = ThreadBag.get().getRequestError();
+                        //ServletContextImpl application = (ServletContextImpl) binding.getVariable("application");
+
+                        StackTraceElement stackTraceElement = findErrorInStackTrace(binding, e);
+
+                        //RequestThreadInfo.get().getTemplateInfo().setTemplateRoot(null);
+//                        String appPath = RequestThreadInfo.get().getApplication().getAppPath() + File.separator;
+//                        String appPath2 = "/" + RequestThreadInfo.get().getParsedRequest().getAppPath() + "/";
+
+                        //RequestThreadInfo.get().setErrorOccurred(true);
+                        ThreadBag.get().getResponse().setStatus(errorCode, e.getMessage());
+
+                        requestError.setErrorCode(errorCode);
+                        requestError.setScriptPath(ThreadBag.get().getTemplateFilePath());
+                        if (e.getMessage() == null) {
+                                requestError.setErrorMessage("");
+                        } else {
+                                //requestError.setErrorMessage(e.getMessage().replace(appPath, "").replace(appPath2, ""));
+                                requestError.setErrorMessage(e.getMessage());
+                        }
+
+                        requestError.setException(e, "", "");
+
+                        binding.setVariable("exceptionName", e.getClass().getName());
+                        binding.setVariable("requestError", requestError);
+
+                        if (stackTraceElement != null) {
+                                try {
+                                        File f = new File(ThreadBag.get().getTemplateFilePath());
+                                        BufferedReader br = new BufferedReader(new FileReader(f));
+                                        String line = null;
+                                        StringBuffer lineBuffer = new StringBuffer();
+                                        int lineCt = 1;
+
+                                        while ((line = br.readLine()) != null) {
+                                                if (lineCt >= stackTraceElement.getLineNumber() - 10 && (lineCt <= stackTraceElement.getLineNumber() + 10)) {
+                                                        lineBuffer.append("<div class=\"sourceLine\"><div class=\"sourceLineNumber\">").append(lineCt).append("</div>");
+                                                        lineBuffer.append("<div class=\"sourceCode\">");
+                                                        lineBuffer.append(line.length() == 0 ? "&nbsp;" : StringUtil.htmlEncode(line).replaceAll(" ", "&nbsp;"));
+                                                        lineBuffer.append("</div></div>");
+                                                }
+
+                                                lineCt++;
+                                        }
+                                        requestError.setSource(lineBuffer.toString());
+                                        br.close();
+                                } catch (Exception ex) {
+                                        logger.debug("Unable to parse source code to display on error page", ex);
+                                }
+                        }
+
+                        String path = ThreadBag.get().getTemplateFilePath();//.replace(appPath, "").replace(appPath2, "");
+                        if (stackTraceElement != null) {
+//                                if (RequestThreadInfo.get().isTemplateRequest()) {
+//                                        path = path.replace(appPath, "");
+//                                }
+
+                                String lineNumberMessage = "Error occurred in <span class=\"path\">" + path + "</span> @ lineNumber: " + (stackTraceElement.getLineNumber());
+                                requestError.setLineNumberMessage(lineNumberMessage);
+                                requestError.setLineNumber(stackTraceElement.getLineNumber());
+                        } else {
+                                if (ThreadBag.get().isTemplateRequest()) {
+                                        String lineNumberMessage = "Error occurred in <span class=\"path\">" + path + "</span>";
+                                        requestError.setLineNumberMessage(lineNumberMessage);
+                                } else {
+                                        requestError.setLineNumberMessage("");
+                                }
+                                requestError.setLineNumber(-1);
+                        }
+
+                        String defaultTemplateExtension = propertiesFile.getString("default.template.extension", "gsp");
+
+                        // if (application.hasCustomErrorFile("error" + errorCode + defaultTemplateExtension)) {
+                        // String errorScriptPath = RequestThreadInfo.get().getApplication().getAppPath() + File.separator + "WEB-INF" + File.separator + "errors" + File.separator + "error" + errorCode + defaultTemplateExtension;
+                        InputStream inputStream = Thread.currentThread().getContextClassLoader().getResourceAsStream("./errors/error" + errorCode + "." + defaultTemplateExtension);
+                        File errorFile = new File(propertiesFile.getString("easygsp.tmp.dir", System.getProperty("java.tmp.dir")) + File.pathSeparator + "errors" + File.pathSeparator + "error" + errorCode + "." + defaultTemplateExtension);
+
+                        if (!errorFile.exists()) {
+                                new File(propertiesFile.getString("easygsp.tmp.dir", System.getProperty("java.tmp.dir")) + File.pathSeparator + "errors").mkdir();
+                                OutputStream outputStream = new FileOutputStream(propertiesFile.getString("easygsp.tmp.dir", System.getProperty("java.tmp.dir")) + File.pathSeparator + "errors" + File.pathSeparator + "error" + errorCode + "." + defaultTemplateExtension);
+
+                                byte[] buff = new byte[1024];
+
+                                while (true) {
+                                        int len = inputStream.read(buff, 0, buff.length);
+                                        if (len == 0)
+                                                break;
+                                        outputStream.write(buff,0,len);
+                                }
+                                outputStream.close();
+                        }
+
+                        File file = new File(url);
+                        ThreadBag.get().getTemplateInfo().setRequestFile(file);
+                        processErrorTemplateRequest(file, binding);
+//                        } else {
+//                                String errorScriptPath = EasyGServer.APP_DIR + File.separator + "conf" + File.separator + "errors" + File.separator + "error" + errorCode + defaultTemplateExtension;
+//                                RequestThreadInfo.get().getParsedRequest().setRequestFilePath(errorScriptPath);
+//                                RequestThread.processTemplateRequest(errorScriptPath, gse, binding);
+//                                //sendError(errorCode, response, e, stackTraceElement, binding);
+                        //}
+                        //response.flushBuffer();
+
+                } catch (Throwable e1) {
+                        logger.debug(e1.getMessage(), e1);
+                        //sendError(errorCode, response, e, stackTraceElement, binding);
+                }
+        }
+
+        private void processErrorTemplateRequest(File file, Binding binding) {
+                try {
+                        TemplateWriter templateWriter = new TemplateWriter(groovyClassLoader);
+                        templateWriter.process(ThreadBag.get().getResponse(), ThreadBag.get().getTemplateInfo(), binding);
+
+                } catch (Exception e) {
+                        e.printStackTrace();
+                }
+        }
+
+
+        private static StackTraceElement findErrorInStackTrace(Binding binding, Throwable e) {
+
+                if (ThreadBag.get().isTemplateRequest()) {
+                        if (e.getStackTrace() != null && ThreadBag.get().getTemplateInfo() != null) {
+
+                                for (StackTraceElement stackTraceElement : e.getStackTrace()) {
+                                        if (stackTraceElement.getFileName() != null) {
+                                                if (stackTraceElement.getFileName().startsWith(ThreadBag.get().getTemplateInfo().getUniqueTemplateScriptName())) {
+                                                        return stackTraceElement;
+                                                }
+                                        }
+                                }
+                        }
+                } else {
+//                        String appPath = RequestThreadInfo.get().getApplication().getAppPath();
+//                        String currentFile = ThreadBag.get().getTemplateFilePath().substring(appPath.length() + 1);
+//
+//                        for (StackTraceElement stackTraceElement : e.getStackTrace()) {
+//                                if (stackTraceElement.getFileName() != null) {
+//                                        if (stackTraceElement.getFileName().endsWith(currentFile)) {
+//                                                return stackTraceElement;
+//                                        }
+//                                }
+//                        }
+                }
+
+
+                return null;
+        }
+
 
         private void loadPropertiesIntoContext(ServletContext app, PropertiesFile propertiesFile) {
                 for (String s : propertiesFile.stringPropertyNames()) {
@@ -572,15 +825,15 @@ public class EasyGsp2 {
         }
 
         private void loadUnannotatedClasses(PropertiesFile propertiesFile) {
-                logger.debug("loading unannotated controller classes");
+                logger.debug("loading unannotated controllers classes");
                 String defaultPackageName = propertiesFile.getString("controllers.package");
 
                 Reflections reflections = new Reflections(defaultPackageName, new TypeElementsScanner(), new SubTypesScanner(false));
                 Set<String> types = reflections.getAllTypes();
 
                 for (String cls : types) {
-                        if (classesWithApiAnnotation.contains(cls)){
-                                continue;
+                        if (classesWithApiAnnotation.contains(cls)) {
+                                //    continue;
                         }
 
                         if (cls.endsWith("Controller")) {
@@ -588,17 +841,17 @@ public class EasyGsp2 {
                                 StringBuffer sb = new StringBuffer();
 
                                 String _api = cls.substring(defaultPackageName.length() + 1, cls.length() - "Controller".length());
-                                for(String s : _api.split("\\.")){
-                                        sb.append(s.substring(0,1).toLowerCase());
-                                        sb.append(s.substring(1,s.length()));
+                                for (String s : _api.split("\\.")) {
+                                        sb.append(s.substring(0, 1).toLowerCase());
+                                        sb.append(s.substring(1, s.length()));
                                         sb.append("/");
                                 }
-                                String api = sb.substring(0,sb.length()-1);
+                                String api = sb.substring(0, sb.length() - 1);
                                 String pattern = "/" + api;
 
                                 Class clazz = parseClassName(cls);
 
-                                String[] httpMethods = {"list", "get", "put", "posts", "delete"};
+                                String[] classMethods = {"list", "index", "get", "put", "post", "delete"};
 
                                 if (clazz != null) {
                                         String mediaType[] = {propertiesFile.getString("default.response.contentType", MediaType.HTML)};
@@ -610,11 +863,11 @@ public class EasyGsp2 {
                                         Secured securedAnno = (Secured) clazz.getAnnotation(Secured.class);
                                         String[] classRoles = securedAnno == null ? new String[]{} : securedAnno.value();
 
-                                        for (String httpMethod : httpMethods) {
+                                        for (String classMethod : classMethods) {
                                                 String _pattern = pattern;
-                                                String _method = httpMethod;
+                                                String _method = classMethod;
 
-                                                if (httpMethod.equalsIgnoreCase("list")) {
+                                                if (classMethod.equalsIgnoreCase("list")) {
                                                         if (isApiController) {
                                                                 _method = "list";
                                                         } else {
@@ -622,16 +875,18 @@ public class EasyGsp2 {
                                                         }
                                                 }
 
-                                                if (httpMethod.equalsIgnoreCase("DELETE") || _method.equalsIgnoreCase("GET") ) {
+                                                if (classMethod.equalsIgnoreCase("DELETE") || classMethod.equalsIgnoreCase("GET")) {
                                                         _pattern = pattern + "/{id}";
                                                 }
 
-                                                if (!Routes.contains(_pattern, _method)) {
-                                                        MethodAndRole listMethod = extractMethod(clazz, _method);
-                                                        if (listMethod.getMethod() != null) {
-                                                                String[] roles = combine(listMethod.getRoles(), classRoles);
+                                                String httpMethod = classMethod.equalsIgnoreCase("list") ? "GET" : classMethod.toUpperCase();
 
-                                                                Routes.add(listMethod.getMethod(), _pattern, "GET", new Class[]{}, roles, accepts, returns);
+                                                if (!Routes.contains(_pattern, httpMethod)) {
+                                                        MethodAndRole method = extractMethod(clazz, _method);
+                                                        if (method.getMethod() != null) {
+                                                                String[] roles = combine(method.getRoles(), classRoles);
+
+                                                                Routes.add(method.getMethod(), _pattern, httpMethod, new Class[]{}, roles, accepts, returns);
                                                         }
                                                 }
                                         }
@@ -650,27 +905,26 @@ public class EasyGsp2 {
 //                                addRoute(routes, post, "/" + api + "/{id}", "POST", new Class[]{}, roles, accepts, returns);
                                 }
                         } else {
-                                logger.warn("class: " + cls + " doesn't end with 'Controller', skipping as controller");
+                                logger.warn("class: " + cls + " doesn't end with 'Controller', skipping as controllers");
                         }
                 }
-
-
         }
-        private boolean isApiController( Class clazz ){
 
-                String apiControllerPackage = propertiesFile.getString("api.controllers.package","");
+        private boolean isApiController(Class clazz) {
 
-                if (clazz.getPackage().getName().equals(apiControllerPackage)){
+                String apiControllerPackage = propertiesFile.getString("api.controllers.package", "");
+
+                if (clazz.getPackage().getName().equals(apiControllerPackage)) {
                         return true;
                 }
 
                 return false;
         }
 
-        private String[] determineDefaultReturnType( Class clazz ){
+        private String[] determineDefaultReturnType(Class clazz) {
                 Content content = null;
                 try {
-                        content = (Content)clazz.getAnnotation(Content.class);
+                        content = (Content) clazz.getAnnotation(Content.class);
                         if (content != null) {
                                 String returnType = content.returns();
 
@@ -678,16 +932,16 @@ public class EasyGsp2 {
                                         return new String[]{returnType};
                                 }
                         }
-                }catch (Exception e){
+                } catch (Exception e) {
                         logger.debug("unable to get Content annotation form class " + clazz.getName());
                 }
 
-                String controllerPackage = propertiesFile.getString("controllers.package","");
-                String apiControllerPackage = propertiesFile.getString("api.controllers.package","");
+                String controllerPackage = propertiesFile.getString("controllers.package", "");
+                String apiControllerPackage = propertiesFile.getString("api.controllers.package", "");
 
-                if (clazz.getPackage().getName().equals(controllerPackage)){
+                if (clazz.getPackage().getName().equals(controllerPackage)) {
                         return new String[]{propertiesFile.getString("default.response.contentType")};
-                } else if (clazz.getPackage().getName().equals(apiControllerPackage)){
+                } else if (clazz.getPackage().getName().equals(apiControllerPackage)) {
                         return new String[]{propertiesFile.getString("api.default.response.contentType")};
                 }
 
@@ -707,18 +961,18 @@ public class EasyGsp2 {
 
                 try {
                         Method foundMethod = null;
-                        for(Method m : cls.getDeclaredMethods()){
-                                if (m.getName().equals(methodName)){
+                        for (Method m : cls.getDeclaredMethods()) {
+                                if (m.getName().equals(methodName)) {
                                         if (foundMethod == null) {
                                                 foundMethod = m;
-                                        }else{
+                                        } else {
                                                 logger.error("method " + methodName + "() found in class: " + cls.getName() + ", not allowed in when using routing by naming convention only.  Use @api annotation instead.");
                                                 break;
                                         }
                                 }
                         }
 
-                        if (foundMethod == null){
+                        if (foundMethod == null) {
                                 return methodAndRole;
                         }
 
@@ -740,7 +994,7 @@ public class EasyGsp2 {
         }
 
         private void loadApiMethods(PropertiesFile propertiesFile) {
-                logger.debug("loading annotated controller methods...");
+                logger.debug("loading annotated controllers methods...");
                 Reflections reflections = new Reflections("", new MethodAnnotationsScanner(), new SubTypesScanner());
                 Set<Method> methods = reflections.getMethodsAnnotatedWith(Api.class);
 
@@ -752,7 +1006,7 @@ public class EasyGsp2 {
 
                         Api anno = m.getDeclaredAnnotation(Api.class);
                         if (anno.url().length > 0) {
-                                logger.debug("loading class: " + m.getDeclaringClass().getName() +", method: " + m.getName() + "(), url: " + anno.url());
+                                logger.debug("loading class: " + m.getDeclaringClass().getName() + ", method: " + m.getName() + "(), url: " + anno.url());
 
                                 for (String classPattern : classAnno.url()) {
                                         for (String _pattern : anno.url()) {
@@ -831,14 +1085,14 @@ public class EasyGsp2 {
                         jsonSerializerInstance = (Serializer) Class.forName(jsonSerializer, false, groovyClassLoader).newInstance();
                 } catch (Exception e) {
                         if (JSON_SERIALIZER_CLASS.equalsIgnoreCase(jsonSerializer)) {
-                                logger.error( "Unable to instantiate default json serializer: " + JSON_SERIALIZER_CLASS);
+                                logger.error("Unable to instantiate default json serializer: " + JSON_SERIALIZER_CLASS);
                         } else {
-                                logger.warn( "error occurred instantiating jsonSerializer: " + jsonSerializer + ", attempting to use default: " + JSON_SERIALIZER_CLASS);
+                                logger.warn("error occurred instantiating jsonSerializer: " + jsonSerializer + ", attempting to use default: " + JSON_SERIALIZER_CLASS);
 
                                 try {
                                         jsonSerializerInstance = (Serializer) Class.forName(jsonSerializer, false, groovyClassLoader).newInstance();
                                 } catch (Exception e1) {
-                                        logger.error( "Unable to instantiate default json serializer: " + JSON_SERIALIZER_CLASS);
+                                        logger.error("Unable to instantiate default json serializer: " + JSON_SERIALIZER_CLASS);
                                 }
                         }
                 }
@@ -848,12 +1102,12 @@ public class EasyGsp2 {
                         logger.debug("XmlSerializer: " + xmlSerializer);
                         xmlSerializerInstance = (XmlSerializer) Class.forName(xmlSerializer, false, groovyClassLoader).newInstance();
                 } catch (Exception e) {
-                        logger.warn( "error occurred instantiating xmlSerializer: " + xmlSerializer + ", attempting to use default: " + XML_SERIALIZER_CLASS);
+                        logger.warn("error occurred instantiating xmlSerializer: " + xmlSerializer + ", attempting to use default: " + XML_SERIALIZER_CLASS);
 
                         try {
                                 xmlSerializerInstance = (XmlSerializer) Class.forName(xmlSerializer, false, groovyClassLoader).newInstance();
                         } catch (Exception e1) {
-                                logger.error( "Unable to instantiate default xml serializer: " + XML_SERIALIZER_CLASS);
+                                logger.error("Unable to instantiate default xml serializer: " + XML_SERIALIZER_CLASS);
                         }
 
                 }
@@ -866,7 +1120,7 @@ public class EasyGsp2 {
                         if (route.isDuplicate()) {
                                 logger.error("url pattern: " + route.getPath() + " exists on multiple methods.");
                         }
-                        throw new InvokeControllerActionException("unable to invoke method " + m.getName() + extractParameterTypes(m.getParameters()) + ",  attempted: " + m.getName() + extractParameterTypes(params), e);
+                        throw new InvokeControllerActionException("unable to invoke method " + m.getDeclaringClass().getName() + "." + m.getName() + extractParameterTypes(m.getParameters()) + ",  attempted: " + m.getName() + extractParameterTypes(params), e);
                 }
         }
 
@@ -889,7 +1143,7 @@ public class EasyGsp2 {
 
                                                 String val = request.getParameter(property);
                                                 if (val != null) {
-                                                        value = castToType(val, params[0].getClass());
+                                                        value = castToType(val, Class.forName(params[0].getName()));
 
                                                         if (obj instanceof GroovyObject) {
                                                                 MetaClass metaClass = InvokerHelper.getMetaClass(obj);
@@ -900,12 +1154,12 @@ public class EasyGsp2 {
                                                 }
                                         }
                                 } catch (Exception e) {
-                                        logger.warn( "BeanUtil.populate failed. method=" + property + ", value=" + value, e);
+                                        logger.warn("BeanUtil.populate failed. method=" + property + ", value=" + value, e);
                                 }
                         }
 
                 } catch (Exception e) {
-                        logger.error( "Error occurred populating object from request", e);
+                        logger.error("Error occurred populating object from request", e);
                 }
                 return obj;
         }
@@ -996,7 +1250,7 @@ public class EasyGsp2 {
                                         Script routesScript = InvokerHelper.createScript(c, binding);
                                         routesScript.invokeMethod("run", new Object[]{});
                                 } catch (Exception e) {
-                                        logger.error( "error in routes.groovy", e);
+                                        logger.error("error in routes.groovy", e);
                                 }
 
                                 return null;
@@ -1127,5 +1381,11 @@ public class EasyGsp2 {
                 }
         }
 
+        public Validator getValidator() {
+                return validator;
+        }
 
+        public void setValidator(Validator validator) {
+                this.validator = validator;
+        }
 }

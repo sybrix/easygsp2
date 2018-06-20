@@ -127,9 +127,7 @@ public class Db {
                                 String username = (String) app.getAttribute(dataSourceName + "database.username");
 
                                 return Sql.newInstance(url, username, pwd, driver);
-
                         }
-
 
                 } catch (Exception e) {
                         throw new RuntimeException("newSqlInstance() failed. Make sure app['database.*]' properties are set and correct." + e.getMessage(), e);
@@ -153,7 +151,6 @@ public class Db {
 
                 return dataSourceProperties;
         }
-
 
         private static void callMethod(Object ds, String methodName, Object parameterValue) {
 

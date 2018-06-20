@@ -94,7 +94,7 @@ public class CustomServletCategory {
                 HttpServletResponse response =  ThreadBag.get().getResponse();
                 HttpServletRequest request =  ThreadBag.get().getRequest();
 
-                request.setAttribute("_explicitForward", true); // when true, controllers don't auto forward
+                request.setAttribute("__redirect__", true); // when true, controllers don't auto forward
                 response.sendRedirect(s);
         }
 

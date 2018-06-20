@@ -41,5 +41,6 @@ public class EasyGsp2Filter implements Filter {
 
         public void destroy() {
 
+                easyGsp2.getAppListener().onApplicationEnd();
         }
 }
