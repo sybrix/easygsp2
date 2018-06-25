@@ -4,7 +4,21 @@
     <artifactId>easygsp2-transforms</artifactId>
     <version>1.0.0-SNAPSHOT</version>
     <packaging>jar</packaging>
+    <pluginRepositories>
+        <pluginRepository>
+            <id>groovy-bintray</id>
+            <name>Groovy Bintray</name>
+            <url>https://dl.bintray.com/groovy/maven</url>
+        </pluginRepository>
+    </pluginRepositories>
+    <properties>
+        <java-version>1.8</java-version>
+        <groovy.version>2.4.13</groovy.version>
+        <maven.compiler.fork>true</maven.compiler.fork>
+        <maven.compiler.source>1.8</maven.compiler.source>
+        <maven.compiler.target>1.8</maven.compiler.target>
 
+    </properties>
     <dependencies>
         <dependency>
             <groupId>org.codehaus.groovy</groupId>
@@ -20,60 +34,25 @@
     </dependencies>
     <build>
         <plugins>
-
             <plugin>
-                <artifactId>maven-antrun-plugin</artifactId>
-                <executions>
-                    <execution>
-                        <id>compile</id>
-                        <phase>compile</phase>
-                        <configuration>
-                            <tasks>
-                                <taskdef name="groovyc"
-                                         classname="org.codehaus.groovy.ant.Groovyc">
-                                    <classpath refid="maven.compile.classpath"/>
-                                </taskdef>
-                                <mkdir dir="${project.build.outputDirectory}"/>
-                                <groovyc destdir="${project.build.outputDirectory}"
-                                         srcdir="${basedir}/src/main/java/" listfiles="true">
-                                    <classpath refid="maven.compile.classpath"/>
-                                    <javac deprecation="false" nowarn="false"
-                                           target="1.8" debug="true" source="1.8">
-
-                                        <include name="**/*.java"/>
-                                        <include name="**/*.groovy"/>
-                                        <include name="**/*.properties"/>
-                                        <compilerarg value="-XDignore.symbol.file"/>
-                                    </javac>
-                                </groovyc>
-                            </tasks>
-                        </configuration>
-                        <goals>
-                            <goal>run</goal>
-                        </goals>
-                    </execution>
-                    <execution>
-                        <id>test-compile</id>
-                        <phase>test-compile</phase>
-                        <configuration>
-                            <tasks>
-
-                                <taskdef name="groovyc"
-                                         classname="org.codehaus.groovy.ant.Groovyc">
-                                    <classpath refid="maven.test.classpath"/>
-                                </taskdef>
-                                <mkdir dir="${project.build.testOutputDirectory}"/>
-                                <groovyc destdir="${project.build.testOutputDirectory}"
-                                         srcdir="${basedir}/src/test/java/" listfiles="true">
-                                    <classpath refid="maven.test.classpath"/>
-                                </groovyc>
-                            </tasks>
-                        </configuration>
-                        <goals>
-                            <goal>run</goal>
-                        </goals>
-                    </execution>
-                </executions>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-compiler-plugin</artifactId>
+                <version>3.7.0</version>
+                <configuration>
+                    <compilerId>groovy-eclipse-compiler</compilerId>
+                </configuration>
+                <dependencies>
+                    <dependency>
+                        <groupId>org.codehaus.groovy</groupId>
+                        <artifactId>groovy-eclipse-compiler</artifactId>
+                        <version>2.9.2-04</version>
+                    </dependency>
+                    <dependency>
+                        <groupId>org.codehaus.groovy</groupId>
+                        <artifactId>groovy-eclipse-batch</artifactId>
+                        <version>2.4.13-02</version>
+                    </dependency>
+                </dependencies>
             </plugin>
         </plugins>
     </build>
