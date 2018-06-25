@@ -618,7 +618,6 @@ public class EasyGsp2 {
                                 throw new NoViewTemplateFound("View template  '" + obj.toString() + "' not found!!!");
                         }
 
-
                         ThreadBag.get().setViewFolder(f.getPath());
                         File requestedViewFile = new File(f.toURI());
                         ThreadBag.get().setTemplateFilePath(requestedViewFile.getAbsolutePath());
@@ -653,34 +652,23 @@ public class EasyGsp2 {
         }
 
 
-        protected void sendError(int errorCode, String scriptPath, Binding binding, Throwable e) {
-//                if (RequestThreadInfo.get().errorOccurred()) {
-//                        return;
-//                }
+        protected void sendError(int errorCode, String requestedURI, Binding binding, Throwable e) {
                 ServletContext application = ThreadBag.get().getApp();
                 try {
-//                        ResponseImpl response = (ResponseImpl) binding.getVariable("response");
-//                        response.flushWriter();
-//                        response.clearBuffer();
 
                         RequestError requestError = ThreadBag.get().getRequestError();
-                        //ServletContextImpl application = (ServletContextImpl) binding.getVariable("application");
 
                         StackTraceElement stackTraceElement = findErrorInStackTrace(binding, e);
 
-                        //RequestThreadInfo.get().getTemplateInfo().setTemplateRoot(null);
-//                        String appPath = RequestThreadInfo.get().getApplication().getAppPath() + File.separator;
-//                        String appPath2 = "/" + RequestThreadInfo.get().getParsedRequest().getAppPath() + "/";
-
-                        //RequestThreadInfo.get().setErrorOccurred(true);
+                        ThreadBag.get().getTemplateInfo().setErrorOccurred(true);
                         ThreadBag.get().getResponse().setStatus(errorCode, e.getMessage());
 
                         requestError.setErrorCode(errorCode);
                         requestError.setScriptPath(ThreadBag.get().getTemplateFilePath());
+
                         if (e.getMessage() == null) {
                                 requestError.setErrorMessage("");
                         } else {
-                                //requestError.setErrorMessage(e.getMessage().replace(appPath, "").replace(appPath2, ""));
                                 requestError.setErrorMessage(e.getMessage());
                         }
 
@@ -716,9 +704,6 @@ public class EasyGsp2 {
 
                         String path = ThreadBag.get().getTemplateFilePath();//.replace(appPath, "").replace(appPath2, "");
                         if (stackTraceElement != null) {
-//                                if (RequestThreadInfo.get().isTemplateRequest()) {
-//                                        path = path.replace(appPath, "");
-//                                }
 
                                 String lineNumberMessage = "Error occurred in <span class=\"path\">" + path + "</span> @ lineNumber: " + (stackTraceElement.getLineNumber());
                                 requestError.setLineNumberMessage(lineNumberMessage);
@@ -735,35 +720,28 @@ public class EasyGsp2 {
 
                         String defaultTemplateExtension = propertiesFile.getString("default.template.extension", "gsp");
 
-                        // if (application.hasCustomErrorFile("error" + errorCode + defaultTemplateExtension)) {
-                        // String errorScriptPath = RequestThreadInfo.get().getApplication().getAppPath() + File.separator + "WEB-INF" + File.separator + "errors" + File.separator + "error" + errorCode + defaultTemplateExtension;
                         InputStream inputStream = Thread.currentThread().getContextClassLoader().getResourceAsStream("./errors/error" + errorCode + "." + defaultTemplateExtension);
-                        File errorFile = new File(propertiesFile.getString("easygsp.tmp.dir", System.getProperty("java.tmp.dir")) + File.pathSeparator + "errors" + File.pathSeparator + "error" + errorCode + "." + defaultTemplateExtension);
+                        File errorFile = new File(propertiesFile.getString("easygsp.tmp.dir", System.getProperty("java.tmp.dir")) + File.separator + "errors" + File.separator + "error" + errorCode + "." + defaultTemplateExtension);
 
                         if (!errorFile.exists()) {
-                                new File(propertiesFile.getString("easygsp.tmp.dir", System.getProperty("java.tmp.dir")) + File.pathSeparator + "errors").mkdir();
-                                OutputStream outputStream = new FileOutputStream(propertiesFile.getString("easygsp.tmp.dir", System.getProperty("java.tmp.dir")) + File.pathSeparator + "errors" + File.pathSeparator + "error" + errorCode + "." + defaultTemplateExtension);
+                                new File(propertiesFile.getString("easygsp.tmp.dir", System.getProperty("java.tmp.dir")) + File.separator + "errors").mkdir();
+                                FileOutputStream outputStream = new FileOutputStream(errorFile);
 
                                 byte[] buff = new byte[1024];
 
                                 while (true) {
                                         int len = inputStream.read(buff, 0, buff.length);
-                                        if (len == 0)
+                                        if (len < 0)
                                                 break;
                                         outputStream.write(buff,0,len);
                                 }
                                 outputStream.close();
                         }
 
-                        File file = new File(url);
-                        ThreadBag.get().getTemplateInfo().setRequestFile(file);
-                        processErrorTemplateRequest(file, binding);
-//                        } else {
-//                                String errorScriptPath = EasyGServer.APP_DIR + File.separator + "conf" + File.separator + "errors" + File.separator + "error" + errorCode + defaultTemplateExtension;
-//                                RequestThreadInfo.get().getParsedRequest().setRequestFilePath(errorScriptPath);
-//                                RequestThread.processTemplateRequest(errorScriptPath, gse, binding);
-//                                //sendError(errorCode, response, e, stackTraceElement, binding);
-                        //}
+                        //File file = new File(url);
+                        ThreadBag.get().getTemplateInfo().setRequestFile(errorFile);
+                        processErrorTemplateRequest(errorFile, binding);
+
                         //response.flushBuffer();
 
                 } catch (Throwable e1) {
