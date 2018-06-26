@@ -70,10 +70,10 @@ public class RequestError {
                 return errorMessage;
         }
         public void setErrorMessage(String errorMessage) {
-//                if (RequestThreadInfo.get().getUniqueTemplateScriptName() != null)
-//                        this.errorMessage = errorMessage.replaceAll(RequestThreadInfo.get().getUniqueTemplateScriptName(), RequestThreadInfo.get().getParsedRequest().getRequestURI());
-//                else
-//                        this.errorMessage = errorMessage;
+                if (ThreadBag.get().getTemplateInfo().getUniqueTemplateScriptName() != null)
+                        this.errorMessage = errorMessage.replaceAll(ThreadBag.get().getTemplateInfo().getUniqueTemplateScriptName(), ThreadBag.get().getTemplateInfo().getRequestUri());
+                else
+                        this.errorMessage = errorMessage;
         }
         public String getStackTraceString() {
                 return stackTraceString;
