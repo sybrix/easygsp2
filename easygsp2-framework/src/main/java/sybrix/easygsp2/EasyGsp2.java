@@ -127,7 +127,11 @@ public class EasyGsp2 {
 
             // delete tmp dir
             File folder = new File(propertiesFile.getString("easygsp.tmp.dir", System.getProperty("java.io.tmpdir")));
-            FileUtils.cleanDirectory(folder);
+            if (folder.exists()) {
+                    FileUtils.cleanDirectory(folder);
+            } else{
+                    folder.mkdirs();
+            }
 
             CompilerConfiguration configuration = new CompilerConfiguration();
             configuration.setTargetDirectory(getCompiledClassesDir());
