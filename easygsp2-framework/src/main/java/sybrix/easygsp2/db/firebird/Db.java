@@ -43,7 +43,7 @@ public class Db {
                 return db.call(s.toString(), parameters);
         }
 
-        public static Object executeProcedure(String procedureName, List<Object> parameters, Closure returnClosure) throws Exception {
+        public static Object executeProcedure(String procedureName, List<Object> parameters, Closure<?> returnClosure) throws Exception {
                 Sql db = newSqlInstance();
                 StringBuffer s = createProcedureCall(procedureName, parameters);
 
@@ -94,11 +94,11 @@ public class Db {
 
                         if (ds == null && dataSourceClass != null) {
 
-                                String url = (String) app.getAttribute(dataSourceName + "datasource.url");
-                                String pwd = (String) app.getAttribute(dataSourceName + "datasource.password");
-                                String username = (String) app.getAttribute(dataSourceName + "datasource.username");
+//                                String url = (String) app.getAttribute(dataSourceName + "datasource.url");
+//                                String pwd = (String) app.getAttribute(dataSourceName + "datasource.password");
+//                                String username = (String) app.getAttribute(dataSourceName + "datasource.username");
 
-                                Class dsClass = Class.forName(dataSourceClass);
+                                Class<?> dsClass = Class.forName(dataSourceClass);
 
                                 ds = dsClass.newInstance();
                                 Map<String, String> dataSourceProperties = getDataSourceProperties(app, dataSourceName);
@@ -164,7 +164,7 @@ public class Db {
                                 }
                         }
 
-                        Class cls = method.getParameterTypes()[0];
+                        Class<?> cls = method.getParameterTypes()[0];
                         if (cls.getName().contains("boolean")) {
                                 cls = Boolean.class;
                         } else if (cls.getName().contains("int")) {
@@ -175,7 +175,7 @@ public class Db {
                                 cls = Double.class;
                         }
 
-                        Constructor constructor = cls.getConstructor(String.class);
+                        Constructor<?> constructor = cls.getConstructor(String.class);
                         Object val = constructor.newInstance(parameterValue.toString());
 
                         Method m = ds.getClass().getMethod(methodName, method.getParameterTypes()[0]);
@@ -186,7 +186,7 @@ public class Db {
                 }
         }
 
-        public static void withTransaction(final Closure closure) {
+        public static void withTransaction(final Closure<?> closure) {
                 Sql db = newSqlInstance(null);
                 java.sql.Connection connection = null;
 

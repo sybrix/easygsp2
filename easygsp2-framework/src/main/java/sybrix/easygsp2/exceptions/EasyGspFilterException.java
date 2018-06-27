@@ -1,6 +1,8 @@
 package sybrix.easygsp2.exceptions;
 
 public class EasyGspFilterException extends RuntimeException {
+        private final long serialVersionUID = -1;
+
         public EasyGspFilterException(Exception e) {
         }
 

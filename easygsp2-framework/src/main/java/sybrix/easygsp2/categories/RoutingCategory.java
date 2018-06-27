@@ -22,16 +22,13 @@ import groovy.lang.GroovyClassLoader;
 import groovy.lang.GroovyObject;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import sybrix.easygsp2.EasyGsp2Filter;
 import sybrix.easygsp2.routing.Route;
 import sybrix.easygsp2.routing.Routes;
 
 import javax.servlet.ServletContext;
 import java.lang.reflect.Method;
-import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
-import java.util.logging.Level;
 
 
 

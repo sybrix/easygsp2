@@ -10,16 +10,21 @@ import java.util.Map;
 
 public class JwtUtil {
 
-        public String create(Map<String,Object> claims){
+        public String create(String subject, Map<String,Object> claims){
                 Key key = MacProvider.generateKey();
-//
-//                String compactJws = Jwts.builder()
-//                        .setSubject("Joe")
-//                        .setClaims()
-//                        .signWith(SignatureAlgorithm.HS512, key)
-//                        .compact();
 
-                return null;
+                if (claims.containsKey("jti")){
+                }
+
+                SignatureAlgorithm signatureAlgorithm = SignatureAlgorithm.HS512;
+
+                String compactJws = Jwts.builder()
+                        .setSubject(subject)
+                        .setClaims(claims)
+                        .signWith(signatureAlgorithm, key)
+                        .compact();
+
+                return compactJws;
         }
 
 
