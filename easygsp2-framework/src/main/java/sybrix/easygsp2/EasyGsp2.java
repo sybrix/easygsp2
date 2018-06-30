@@ -35,6 +35,7 @@ import sybrix.easygsp2.routing.MethodAndRole;
 import sybrix.easygsp2.routing.Routes;
 import sybrix.easygsp2.routing.UrlParameter;
 import sybrix.easygsp2.security.EasyGspServletRequest;
+import sybrix.easygsp2.security.JwtUtil;
 import sybrix.easygsp2.templates.RequestError;
 import sybrix.easygsp2.templates.TemplateInfo;
 import sybrix.easygsp2.templates.TemplateWriter;
@@ -107,7 +108,7 @@ public class EasyGsp2 {
         init(config.getServletContext(), config);
     }
 
-    public void init(ServletContext context, Object config) {
+    public void init(ServletContext servletContext, Object config) {
         try {
 
             System.setProperty("easygsp.version", "@easygsp_version");
@@ -120,7 +121,7 @@ public class EasyGsp2 {
                             "\n"
             );
             propertiesFile = new PropertiesFile("classPath:easygsp.properties");
-            this.context = context;
+            this.context = servletContext;
             if (config instanceof ServletConfig) {
                 isServlet = true;
             }
@@ -148,7 +149,9 @@ public class EasyGsp2 {
             loadApiMethods(propertiesFile);
             loadUnannotatedClasses(propertiesFile);
             loadSerializers(propertiesFile);
-            loadPropertiesIntoContext(context, propertiesFile);
+            loadPropertiesIntoContext(servletContext, propertiesFile);
+
+            loadJwtValues(propertiesFile, servletContext);
 
             String appListenerClass = null;
             if (config instanceof ServletConfig) {
@@ -157,13 +160,13 @@ public class EasyGsp2 {
                 appListenerClass = ((FilterConfig) config).getInitParameter("appListener");
             }
             // load DB String queries
-            ThreadBag.set(new ThreadVariables(context));
+            ThreadBag.set(new ThreadVariables(servletContext));
             Model.initStringQueries();
 
             if (appListenerClass != null) {
                 Class cls = Class.forName(appListenerClass, false, groovyClassLoader);
                 appListener = (AppListener) cls.newInstance();
-                appListener.onApplicationStart(context);
+                appListener.onApplicationStart(servletContext);
             }
 
             ValidatorFactory factory = Validation.buildDefaultValidatorFactory();
@@ -174,6 +177,19 @@ public class EasyGsp2 {
         } finally {
             ThreadBag.remove();
         }
+    }
+
+    private void loadJwtValues(PropertiesFile propertiesFile, ServletContext servletContext) {
+
+        JwtUtil jwtUtil = new JwtUtil(propertiesFile.getString("jwt.alg","HS256"));
+        String key = propertiesFile.getString("jwt.key");
+        if (key == null){
+                logger.info("no jwt key found. generating key....");
+                key = jwtUtil.generateKey();
+                logger.info("generated jwt key, HS256: "+ key);
+        }
+
+        jwtUtil.loadKey(key);
     }
 
     protected AppListener getAppListener() {

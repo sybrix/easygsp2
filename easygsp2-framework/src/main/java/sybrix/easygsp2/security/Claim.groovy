@@ -1,20 +1,30 @@
 package sybrix.easygsp2.security
 
-class Scope {
-    String claimName
+class Claim {
+    String name
     String value
 
-    public Scope(){
+    public Claim() {
 
     }
 
-    public Scope(String claimName, String value){
-        this.claimName = claimName
-        this.value =  value
+    public Claim(String claimName, String value) {
+        this.name = claimName
+        this.value = value
     }
 
-    public Scope(ClaimType claimType, String value){
-        this.claimName = claimType.val()
-        this.value =  value
+    public Claim(ClaimType claimType, String value) {
+        this.name = claimType.val()
+        this.value = value
+    }
+
+    @Override
+    boolean equals(Object obj) {
+        if (name == null || obj == null)
+            return false
+
+        Claim b = ((Claim) obj)
+
+        name.equals(b.name)
     }
 }

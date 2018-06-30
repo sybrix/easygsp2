@@ -10,7 +10,8 @@ public class Base64 {
                 return org.apache.commons.codec.binary.Base64.decodeBase64(data);
         }
 
-        public static byte[] encode(byte[] data) {
-                return org.apache.commons.codec.binary.Base64.encodeBase64(data);
+
+        public static String encode(byte[] data) {
+                return org.apache.commons.codec.binary.Base64.encodeBase64String(data);
         }
 }
