@@ -3,6 +3,10 @@ package sybrix.easygsp2.security
 class Claims {
     private Map<String, Claim> data = new HashMap<>()
 
+    def add(ClaimType claimType, Object val) {
+        data.put(claimType.val(), val)
+    }
+
     def add(Claim claim) {
         data.put(claim.getName(), claim)
     }

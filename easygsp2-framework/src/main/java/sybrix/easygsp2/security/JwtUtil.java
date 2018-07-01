@@ -10,22 +10,30 @@ import sybrix.easygsp2.util.Base64;
 import sybrix.easygsp2.util.PropertiesFile;
 
 import javax.crypto.spec.SecretKeySpec;
+import javax.servlet.http.HttpServletRequest;
+import javax.servlet.http.HttpServletResponse;
 import java.security.Key;
 import java.util.List;
 import java.util.Map;
 import java.util.Properties;
 
 public class JwtUtil {
+
+        public static JwtUtil instance;
+
         private Key key;
         private String alg;
         private String algType;
 
+        public JwtUtil(){
+
+        }
 
         public JwtUtil(String alg){
                 this.alg = alg;
         }
 
-        public void  loadKey(String keyVal){
+        public void loadKey(String keyVal){
             if (alg.equalsIgnoreCase("HS512")) {
                 key = new SecretKeySpec(Base64.decode(keyVal), SignatureAlgorithm.HS512.getJcaName());
             } else if (alg.equalsIgnoreCase("HS256")) {
@@ -72,7 +80,7 @@ public class JwtUtil {
                 } else if (alg.equalsIgnoreCase("HS256")) {
                         return Base64.encode(MacProvider.generateKey(SignatureAlgorithm.HS256).getEncoded());
                 } else {
-                        throw new RuntimeException("Not implmented");
+                        throw new RuntimeException("Not implemented");
                 }
         }
 

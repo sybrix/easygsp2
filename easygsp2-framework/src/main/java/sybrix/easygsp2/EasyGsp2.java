@@ -24,6 +24,7 @@ import sybrix.easygsp2.anno.Api;
 import sybrix.easygsp2.anno.Content;
 import sybrix.easygsp2.anno.Secured;
 import sybrix.easygsp2.categories.RoutingCategory;
+import sybrix.easygsp2.controllers.JwtController;
 import sybrix.easygsp2.data.Serializer;
 import sybrix.easygsp2.data.XmlSerializer;
 import sybrix.easygsp2.db.firebird.Model;
@@ -145,13 +146,12 @@ public class EasyGsp2 {
             ignoredUrlPatterns = new ArrayList<Pattern>();
 
             ThreadBag.set(new ThreadVariables(this.context, null, null, routes, null, null, groovyClassLoader));
-            //loadRoutes();
+            loadDefaultRoutes();
             loadApiMethods(propertiesFile);
             loadUnannotatedClasses(propertiesFile);
             loadSerializers(propertiesFile);
             loadPropertiesIntoContext(servletContext, propertiesFile);
-
-            loadJwtValues(propertiesFile, servletContext);
+            loadJwtValues(propertiesFile);
 
             String appListenerClass = null;
             if (config instanceof ServletConfig) {
@@ -179,7 +179,11 @@ public class EasyGsp2 {
         }
     }
 
-    private void loadJwtValues(PropertiesFile propertiesFile, ServletContext servletContext) {
+    private void loadDefaultRoutes() {
+        Routes.add("GET", "/token", JwtController.class, "generateToken", new Class[]{HttpServletRequest.class,HttpServletResponse.class}, null, new String[]{MediaType.JSON}, new String[]{MediaType.JSON});
+    }
+
+    private void loadJwtValues(PropertiesFile propertiesFile) {
 
         JwtUtil jwtUtil = new JwtUtil(propertiesFile.getString("jwt.alg","HS256"));
         String key = propertiesFile.getString("jwt.key");
@@ -190,6 +194,8 @@ public class EasyGsp2 {
         }
 
         jwtUtil.loadKey(key);
+        JwtUtil.instance = jwtUtil;
+
     }
 
     protected AppListener getAppListener() {
