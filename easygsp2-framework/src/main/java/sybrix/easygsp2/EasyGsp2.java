@@ -121,8 +121,10 @@ public class EasyGsp2 {
                             "\nGROOVY_VERSION: " + GroovySystem.getVersion() +
                             "\n"
             );
+
             propertiesFile = new PropertiesFile("classPath:easygsp.properties");
-            this.context = servletContext;
+            servletContext.setAttribute("__propertiesFile", propertiesFile);
+
             if (config instanceof ServletConfig) {
                 isServlet = true;
             }
