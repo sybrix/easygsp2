@@ -9,6 +9,7 @@ import io.jsonwebtoken.impl.crypto.MacProvider;
 import sybrix.easygsp2.framework.ThreadBag;
 import sybrix.easygsp2.util.Base64;
 import sybrix.easygsp2.util.PropertiesFile;
+import sybrix.easygsp2.util.StringUtil;
 
 import javax.crypto.spec.SecretKeySpec;
 import javax.servlet.http.HttpServletRequest;
@@ -17,10 +18,7 @@ import java.security.Key;
 import java.time.LocalDateTime;
 import java.time.ZoneOffset;
 import java.time.ZonedDateTime;
-import java.util.Date;
-import java.util.List;
-import java.util.Map;
-import java.util.Properties;
+import java.util.*;
 
 public class JwtUtil {
 
@@ -49,26 +47,28 @@ public class JwtUtil {
             }
         }
 
-        public String create(Claims claims){
+        public String create(String username, List<String> scopes){
                 //header.payload.signature
 
                 String subject = null;
+                Map<String,Object> scopesMap = new HashMap();
+                scopesMap.put("scopes", scopes);
 
-                if (claims.contains(ClaimType.ISSUER.val())){
-                        subject = claims.get(ClaimType.ISSUER.val()).getValue();
-                }
                 PropertiesFile propertiesFile = (PropertiesFile)ThreadBag.get().getApp().getAttribute("__propertieFile");
                 int expirySeconds =  propertiesFile.getInt("jwt.expires_in_seconds", (60 * 60 * 24)); // 24 hours default
+                String issuer =  propertiesFile.getString("jwt.issuer");
 
                 LocalDateTime currentTime = LocalDateTime.now();
                 LocalDateTime expireTime = currentTime.plusSeconds(expirySeconds);
                 Date expiryDate = Date.from(expireTime.toInstant(ZonedDateTime.now().getOffset()));
 
                 String compactJws = Jwts.builder()
-                        .setSubject(subject)
-                        .setClaims(claims.toMap())
+                        .setSubject(username)
+                        .setClaims(scopesMap)
+                        .setIssuer(issuer)
                         .setIssuedAt(Date.from(currentTime.toInstant(ZonedDateTime.now().getOffset())))
                         .setExpiration(expiryDate)
+                        .setId(StringUtil.randomCode(8))
                         .signWith(signatureAlgorithm, key)
                         .compact();
 

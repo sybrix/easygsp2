@@ -13,6 +13,8 @@ public interface Serializer {
 
         String toString(Object o);
 
+        Object parse(String xmlString, Class cls);
+
         Object parse(String xmlString);
 
         Object parse(InputStream inputStream, int length);

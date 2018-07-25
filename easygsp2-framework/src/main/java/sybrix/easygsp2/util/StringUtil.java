@@ -241,7 +241,7 @@ public class StringUtil {
         return false;
     }
 
-    public String randomCode(int len) {
+    public static String randomCode(int len) {
         int leftLimit1 = 97; // letter 'a'
         int rightLimit1 = 122; // letter 'z'
 

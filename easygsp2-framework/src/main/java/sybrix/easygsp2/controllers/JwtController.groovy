@@ -1,8 +1,10 @@
 package sybrix.easygsp2.controllers
 
 import sybrix.easygsp2.models.TokenResponse
+import sybrix.easygsp2.security.AuthorizationValidator
 import sybrix.easygsp2.security.ClaimType
 import sybrix.easygsp2.security.Claims
+import sybrix.easygsp2.security.Client
 import sybrix.easygsp2.security.JwtUtil
 import sybrix.easygsp2.util.PropertiesFile
 
@@ -33,4 +35,11 @@ class JwtController {
 
         tokenResponse
     }
+
+    def addClient(String name, HttpServletRequest request){
+        AuthorizationValidator authorizationValidator = new AuthorizationValidator()
+        .addClient(name)
+    }
 }
+
+

@@ -1,7 +1,6 @@
 package sybrix.easygsp2.data;
 
 
-import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JavaType;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.ObjectReader;
@@ -9,12 +8,13 @@ import groovy.json.JsonSlurper;
 import sybrix.easygsp2.exceptions.ParameterDeserializationException;
 
 import javax.servlet.http.HttpServletResponse;
+import java.io.IOException;
 import java.io.InputStream;
 import java.lang.reflect.Type;
 
 public class JsonSerializerImpl implements Serializer {
 
-        public void write(Object o, HttpServletResponse httpServletResponse)  {
+        public void write(Object o, HttpServletResponse httpServletResponse) {
                 ObjectMapper objectMapper = new ObjectMapper();
                 try {
                         //httpServletResponse.setHeader("Transfer-Encoding", "chunked");
@@ -42,10 +42,20 @@ public class JsonSerializerImpl implements Serializer {
                 } catch (Exception e) {
                         throw new RuntimeException("error converting object to json, " + e.getMessage(), e);
                 }
-
         }
 
-        public Object parse(String jsonString) {
+        public Object parse(String jsonString, Class cls) {
+                try {
+                        ObjectMapper objectMapper = new ObjectMapper();
+
+                        return objectMapper.readValue(jsonString, cls);
+                } catch (IOException e) {
+                        throw new RuntimeException("Unable to readValue from json string: " + jsonString);
+                }
+        }
+
+        @Override
+        public Object parse(String xmlString) {
                 return null;
         }
 
@@ -82,6 +92,5 @@ public class JsonSerializerImpl implements Serializer {
                         throw new ParameterDeserializationException(e);
                 }
         }
-
 
 }
